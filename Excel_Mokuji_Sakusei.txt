@@ -1,0 +1,87 @@
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'   作成:   2014/4　羽野
+'
+'   概要:  エクセルのシートの目次作成マクロです
+'          シート名が"目次"のシートにハイパーリンク付きの目次を作成します
+'
+'   対象:  "目次"シートより右側にある全てのシートのシート名
+'          "目次シートより右側にある全てのシートの"1.1.や2.1.などの項目番号と項目名
+'
+'   作成イメージ:
+'            1. 設計基本方針
+'                1.1. AIX設計方針
+'            2. AIX設計（本番）
+'                2.1. ファイルセット
+'                2.2. PTF適用
+'                2.3. 言語環境定義
+'                2.4. タイムゾーン定義
+'                2.5. カーネル定義
+'                2.6. セキュリティ定義
+'                2.7. CRONスケジュール定義
+'                2.8. ファイルシステム／ＶＧ定義
+'
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub 目次作成()
+
+Dim wksOutput As Worksheet '目次シート有無チェック用
+Dim i As Long, j As Long, l As Long, m As Long, n As Long 'インクリメント用
+Dim RE, strPattern As String, msg As String, reMatch '正規表現チェック用
+i = j = l = m = n = 0 '0初期化
+
+'目次シートのチェック
+On Error Resume Next
+Set wksOutput = Worksheets("目次")
+On Error GoTo 0
+
+'目次シートなしの場合はエラーメッセージ
+If wksOutput Is Nothing Then
+MsgBox "目次シートを用意してください"
+Exit Sub
+End If
+
+'目次シートをアクティブ
+Sheets("目次").Activate
+
+'目次シートより右にあるシートを目次の作成対象とする
+m = Worksheets("目次").Index
+For i = (m + 1) To Worksheets.Count
+
+    'シート名とハイパーリンクを作成
+    Sheets("目次").Hyperlinks.Add Anchor:=Range("D" & i + j + 11), _
+    Address:="", _
+    SubAddress:="'" & Worksheets(i).Name & "'" & "!A1", _
+    TextToDisplay:=Worksheets(i).Name
+
+    '正規表現による項番チェック
+    Set RE = CreateObject("VBScript.RegExp")
+    strPattern = "^\d+[.]+\d+[.]+\D+"
+    
+    With RE
+        .Pattern = strPattern
+        .IgnoreCase = True
+        .Global = True
+        '項番は1000行目までにあると設定
+        For l = 1 To 1000
+	    '項番は10列目までにあると設定
+            For n = 1 To 10
+            Set reMatch = .Execute(Sheets(i).Cells(l, n))
+            If reMatch.Count > 0 Then
+                msg = reMatch(0).Value
+                '目次シートの指定列行から項番とハイパーリンクを作成
+                Sheets("目次").Hyperlinks.Add Anchor:=Range("E" & i + j + 12), _
+                Address:="", _
+                SubAddress:="'" & Worksheets(i).Name & "'" & "!A" & l, _
+                TextToDisplay:=msg
+                Set reMatch = Nothing
+                j = j + 1
+            End If
+            Next n
+        Next l
+    End With
+    Set RE = Nothing
+Next i
+
+End Sub
+
+
